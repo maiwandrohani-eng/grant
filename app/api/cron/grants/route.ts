@@ -31,6 +31,9 @@ function assertCronAuth(req: Request) {
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
   if (isVercelCron) return;
 
+  // Local/dev convenience: allow running without auth if explicitly enabled.
+  if (process.env.ALLOW_UNAUTHENTICATED_CRON === "1") return;
+
   const expected = process.env.CRON_SECRET;
   if (!expected) {
     const err = new Error("Unauthorized (missing CRON_SECRET)");
@@ -55,8 +58,41 @@ function buildQueries(sourceName: string, hints?: string[]): string[] {
   return [base, ...extra];
 }
 
+function mockCandidates(): Candidate[] {
+  return [
+    {
+      sourceCategory: "AGGREGATORS_DATABASES",
+      sourceName: "ReliefWeb Opportunities (jobs and grants section)",
+      title: "Call for Proposals: Child Protection & MHPSS for Conflict-Affected Children (Syria/Turkey)",
+      url: "https://example.org/mock/grant-1",
+      snippet:
+        "Funding opportunity for NGOs (including 501(c)(3)) supporting child protection and MHPSS in Syria and Turkey. Deadline: 15 May 2026. Local NGO preference noted."
+    },
+    {
+      sourceCategory: "BILATERAL_DONORS",
+      sourceName: "BPRM (U.S. Bureau of Population, Refugees, and Migration)",
+      title: "Notice of Funding Opportunity: Emergency WASH & Health Support for Displaced Populations (Lebanon)",
+      url: "https://example.org/mock/grant-2",
+      snippet:
+        "NOFO open to nonprofits/NGOs. Focus: WASH and emergency health for refugees in Lebanon. Deadline June 20, 2026. Awards up to $2,000,000."
+    },
+    {
+      sourceCategory: "UN_AGENCIES_POOLED_FUNDS",
+      sourceName: "Ukraine Humanitarian Fund (UHF)",
+      title: "UHF Allocation: Education in Emergencies and Protection (Ukraine) — Rolling Window",
+      url: "https://example.org/mock/grant-3",
+      snippet:
+        "Rolling call for proposals for national and international NGOs registered in Ukraine or with local partners. Focus: education in emergencies and child protection."
+    }
+  ];
+}
+
 async function searchAllSources(): Promise<Candidate[]> {
   const out: Candidate[] = [];
+
+  if (process.env.DRY_RUN === "1" && process.env.MOCK_RESULTS === "1") {
+    return mockCandidates();
+  }
 
   // Serper free tier is limited monthly; we batch multiple sources per query.
   // This still "searches every source" daily by explicitly including each source name in a batched OR clause.
@@ -100,6 +136,9 @@ export async function GET(req: Request) {
 
   try {
     assertCronAuth(req);
+
+    const dryRun = process.env.DRY_RUN === "1";
+    const sendEmail = process.env.SEND_EMAIL !== "0";
 
     const now = new Date();
     const candidates = await searchAllSources();
@@ -148,19 +187,37 @@ export async function GET(req: Request) {
       const exists = await prisma.grant.findUnique({ where: { dedupeKey }, select: { id: true } });
       if (exists) continue;
 
-      const scored = await scoreGrantWithOpenAI({
-        title: c.title,
-        url: c.url,
-        snippet: c.snippet,
-        sourceName: c.sourceName,
-        sourceCategory: c.sourceCategory,
-        extracted: {
-          deadlineType: deadlineInfo.type,
-          deadlineISO: extractedDeadlineISO,
-          amountRange,
-          localRegistrationAdvantage: elig.localAdvantage
-        }
-      });
+      const scored = dryRun
+        ? {
+            relevanceScore: 8,
+            matchNote:
+              "Matches INARA’s target geographies and priority sectors (child protection, MHPSS, WASH, education, and emergency health) in conflict-affected settings. INARA is eligible as a U.S. 501(c)(3) and has local registrations that may strengthen the application where local preference applies.",
+            geographicFocus: "Syria, Afghanistan, Lebanon, Ukraine, Egypt, Turkey, Palestine/Gaza",
+            thematicFocus: "Child protection, MHPSS, Education in emergencies, WASH, Emergency response",
+            donor: c.sourceName,
+            fundName: null,
+            amountRange: amountRange,
+            deadlineType: (deadlineInfo.type === "FIXED" ? "FIXED" : deadlineInfo.type === "ROLLING" ? "ROLLING" : "UNKNOWN") as
+              | "FIXED"
+              | "ROLLING"
+              | "OPEN"
+              | "UNKNOWN",
+            deadlineISO: extractedDeadlineISO,
+            localRegistrationAdvantage: elig.localAdvantage
+          }
+        : await scoreGrantWithOpenAI({
+            title: c.title,
+            url: c.url,
+            snippet: c.snippet,
+            sourceName: c.sourceName,
+            sourceCategory: c.sourceCategory,
+            extracted: {
+              deadlineType: deadlineInfo.type,
+              deadlineISO: extractedDeadlineISO,
+              amountRange,
+              localRegistrationAdvantage: elig.localAdvantage
+            }
+          });
 
       // Enforce strict gating even after AI: must match geo+sector and deadline rule
       const scoredBlob = [scored.geographicFocus, scored.thematicFocus, c.title, c.snippet].join(" \n ");
@@ -223,7 +280,7 @@ export async function GET(req: Request) {
         })
       : [];
 
-    if (inserted.length > 0) {
+    if (inserted.length > 0 && sendEmail && !dryRun) {
       await sendDigestEmail(inserted);
     }
 
@@ -242,7 +299,11 @@ export async function GET(req: Request) {
       found: candidates.length,
       kept: kept.length,
       inserted: inserted.length,
-      emailed: inserted.length
+      emailed: inserted.length > 0 && sendEmail && !dryRun ? inserted.length : 0,
+      dryRun,
+      note: dryRun
+        ? "DRY_RUN enabled: using mock candidates and skipping OpenAI + email send (DB inserts still happen)."
+        : undefined
     });
   } catch (e: any) {
     const status = typeof e?.statusCode === "number" ? e.statusCode : 500;
