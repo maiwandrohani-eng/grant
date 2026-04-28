@@ -1,6 +1,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import {
+  Activity,
+  ArrowUpRight,
+  Brain,
+  CalendarClock,
+  CheckCircle2,
+  Clock,
+  Database,
+  Mail,
+  ShieldAlert,
+  Sparkles
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -58,7 +70,7 @@ export default async function Home() {
                   overflow: "hidden"
                 }}
               >
-                <Image src="/inara-logo.png" alt="INARA" width={40} height={40} priority />
+                <Image src="/inara-logo-transparent.png" alt="INARA" width={40} height={40} priority />
               </div>
               <div>
                 <div style={{ fontSize: 14, color: "var(--muted)" }}>INARA</div>
@@ -73,23 +85,50 @@ export default async function Home() {
 
             <div style={{ marginTop: 12, display: "flex", flexWrap: "wrap", gap: 10 }}>
               <span className="pill">
-                <span className="badge">🔴</span> <b>Apply Now</b> (under 30 days)
+                <span className="badge" aria-hidden="true">
+                  <Clock size={14} />
+                </span>{" "}
+                <b>Apply Now</b> (under 30 days)
               </span>
               <span className="pill">
-                <span className="badge">🟡</span> <b>Upcoming</b> (31–90 days)
+                <span className="badge" aria-hidden="true">
+                  <CalendarClock size={14} />
+                </span>{" "}
+                <b>Upcoming</b> (31–90 days)
               </span>
               <span className="pill">
-                <span className="badge">🟢</span> <b>Rolling</b> (open window)
+                <span className="badge" aria-hidden="true">
+                  <Activity size={14} />
+                </span>{" "}
+                <b>Rolling</b> (open window)
               </span>
               <span className="pill">
-                <span className="badge">🧠</span> <b>AI scored</b> + match note
+                <span className="badge" aria-hidden="true">
+                  <Brain size={14} />
+                </span>{" "}
+                <b>AI scored</b> + match note
+              </span>
+              <span className="pill">
+                <span className="badge" aria-hidden="true">
+                  <Database size={14} />
+                </span>{" "}
+                <b>Neon + Prisma</b> history
+              </span>
+              <span className="pill">
+                <span className="badge" aria-hidden="true">
+                  <Mail size={14} />
+                </span>{" "}
+                <b>Email digest</b> (Resend)
               </span>
             </div>
           </div>
 
           <div className="glass" style={{ padding: 14, borderRadius: 18, background: "rgba(0,0,0,0.22)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-              <div style={{ fontWeight: 900, letterSpacing: -0.3 }}>Latest run</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, letterSpacing: -0.3 }}>
+                <Sparkles size={16} aria-hidden="true" />
+                Latest run
+              </div>
               <span className="tag" style={{ borderColor: "rgba(255,255,255,0.14)" }}>
                 {latestRun ? fmtDate(latestRun.startedAt) : "—"}
               </span>
@@ -153,7 +192,10 @@ export default async function Home() {
       <div className="grid triRow" style={{ gridTemplateColumns: "1fr 1fr 1fr", marginTop: 14 }}>
         <div className="glass" style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 900 }}>🔴 Apply Now</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}>
+              <Clock size={16} aria-hidden="true" />
+              Apply Now
+            </div>
             <span className="tag apply">{applyNow.length} shown</span>
           </div>
           <div style={{ marginTop: 8, color: "var(--muted)", fontSize: 13, lineHeight: 1.5 }}>
@@ -162,7 +204,10 @@ export default async function Home() {
         </div>
         <div className="glass" style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 900 }}>🟡 Upcoming</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}>
+              <CalendarClock size={16} aria-hidden="true" />
+              Upcoming
+            </div>
             <span className="tag upcoming">{upcoming.length} shown</span>
           </div>
           <div style={{ marginTop: 8, color: "var(--muted)", fontSize: 13, lineHeight: 1.5 }}>
@@ -171,7 +216,10 @@ export default async function Home() {
         </div>
         <div className="glass" style={{ padding: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontWeight: 900 }}>🟢 Rolling</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900 }}>
+              <Activity size={16} aria-hidden="true" />
+              Rolling
+            </div>
             <span className="tag rolling">{rolling.length} shown</span>
           </div>
           <div style={{ marginTop: 8, color: "var(--muted)", fontSize: 13, lineHeight: 1.5 }}>
@@ -182,7 +230,10 @@ export default async function Home() {
 
       <div className="glass" style={{ marginTop: 14, padding: 14 }}>
         <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-          <div style={{ fontWeight: 900, fontSize: 16, letterSpacing: -0.2 }}>Latest saved grants</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 900, fontSize: 16, letterSpacing: -0.2 }}>
+            <Database size={16} aria-hidden="true" />
+            Latest saved grants
+          </div>
           <div style={{ color: "var(--muted)", fontSize: 13 }}>Showing up to 60 most recent (deduped)</div>
         </div>
 
@@ -207,11 +258,17 @@ export default async function Home() {
                   <tr key={g.id}>
                     <td style={{ whiteSpace: "nowrap" }}>
                       {g.priority === "APPLY_NOW" ? (
-                        <span className="tag apply">🔴</span>
+                        <span className="tag apply">
+                          <Clock size={14} aria-hidden="true" /> Apply
+                        </span>
                       ) : g.priority === "UPCOMING" ? (
-                        <span className="tag upcoming">🟡</span>
+                        <span className="tag upcoming">
+                          <CalendarClock size={14} aria-hidden="true" /> Upcoming
+                        </span>
                       ) : (
-                        <span className="tag rolling">🟢</span>
+                        <span className="tag rolling">
+                          <Activity size={14} aria-hidden="true" /> Rolling
+                        </span>
                       )}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>
@@ -230,7 +287,7 @@ export default async function Home() {
                     <td style={{ whiteSpace: "nowrap" }}>{g.localRegistrationAdvantage ? "🚨 Yes" : "No"}</td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <Link href={g.url} target="_blank" rel="noreferrer">
-                        Open
+                        Open <ArrowUpRight size={14} aria-hidden="true" style={{ verticalAlign: "-2px" }} />
                       </Link>
                     </td>
                   </tr>

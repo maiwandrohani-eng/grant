@@ -15,6 +15,7 @@
   "dependencies": {
     "@prisma/client": "^6.16.1",
     "chrono-node": "^2.9.0",
+    "lucide-react": "^1.11.0",
     "next": "^15.5.0",
     "openai": "^5.16.0",
     "react": "^19.1.1",
